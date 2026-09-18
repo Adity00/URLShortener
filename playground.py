@@ -1,16 +1,15 @@
-import random
-import string
+from security import create_access_token, decode_access_token
+import jwt
 
-# letters = ["A","B","C","D","E","F","G","H","I"]
-# numbers = ["0","1","2","3","4","5","6","7","8","9"]
-res = ''
-# c = ["N","C"]
+print('Valid Token')
 
-chars = string.digits+string.ascii_letters
-for i in range(4):
-    res+=random.choice(chars)    
+token = create_access_token(3, expires_in_minutes=-1)
 
-print(dir(string))
+print(token)
 
-print(string.ascii_letters)
-print(res)
+print('\nDecoded:')
+
+try:
+    print(decode_access_token(token))
+except jwt.ExpiredSignatureError:
+    print('token has expired') 
