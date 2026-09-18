@@ -1,5 +1,5 @@
 from database.connection import pool
-from psycopg.errors import UniqueViolation, OperationalError
+from psycopg.errors import UniqueViolation
 
 def create_url(short_code, url, user_id, expires_at=None):
     try:
@@ -102,4 +102,27 @@ def create_user(email, password_hash):
             
     except UniqueViolation:
         return False
-                
+
+def get_user_by_email(email):
+    with pool.connection() as connection:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT id, email, password_hash
+                FROM users
+                WHERE email = %s
+                """,
+                (email,)
+            )
+
+            row = cursor.fetchone()
+
+            if row is None:
+                return None
+
+            return {
+                'id':row[0],
+                'email':row[1],
+                'password_hash':row[2]
+            }
+            

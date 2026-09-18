@@ -1,20 +1,24 @@
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, status, Depends
 from fastapi.responses import RedirectResponse
 
-from models.url import URLRequest,URLResponse,URLStatsResponse,RegisterRequest
+from models.url import URLRequest,URLResponse,URLStatsResponse,RegisterRequest, LoginRequest
 from services.url_service import create_short_url, get_url_for_redirect, get_stats_for_url
 from exceptions import URLCreationError,URLExpiredError,URLNotFoundError
-from services.auth_service import register_user
+from services.auth_service import register_user, login_user
+from dependancies import get_current_user
 
 
 router = APIRouter()
 
 
 @router.post("/shorten",response_model=URLResponse, status_code=status.HTTP_201_CREATED)
-def shorten(request: URLRequest):
+def shorten(request: URLRequest,
+            user_id:int = Depends(get_current_user)
+            ):
     try:
         short_code, expires_at = create_short_url(
             request.url,
+            user_id,
             request.expires_in
         )
 
@@ -32,9 +36,9 @@ def shorten(request: URLRequest):
 
 
 @router.get("/stats/{code}", response_model=URLStatsResponse)
-def stats(code: str):
+def stats(code: str, user_id:int = Depends(get_current_user)):
     try:
-        record = get_stats_for_url(code)
+        record = get_stats_for_url(code, user_id)
         
     except URLNotFoundError:
         raise HTTPException(
@@ -48,7 +52,14 @@ def stats(code: str):
         'clicks':record['clicks'],
         'expires_at':record['expires_at']
     }    
+
     
+@router.get('/me')
+def me(user_id: int = Depends(get_current_user)):
+    return{
+        'user_id':user_id
+    }
+
 
 @router.get("/{code}")
 def redirect_url(code: str):
@@ -90,3 +101,19 @@ def register(request: RegisterRequest):
         return{
             'message':'User registered'
         }
+
+
+@router.post('/login')
+def login(request:LoginRequest):
+    token = login_user(request.email, request.password)
+
+    if token is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail='Invalid Email or Password'
+        )
+
+    return{
+        'access_token':token,
+        'token_type':'bearer'
+    }
